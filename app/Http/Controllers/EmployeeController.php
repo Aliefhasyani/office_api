@@ -19,7 +19,8 @@ class EmployeeController extends Controller
         $employees = Employee::all();
         
         return response()->json([
-                $employees
-            ]);
+                'success' => 'true',
+                'employees' => $employees
+            ],200);
     }
 }
