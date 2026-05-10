@@ -17,4 +17,9 @@ class Leave extends Model
         'attachment',
         'leave_type'
     ];
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
+    }
 }
