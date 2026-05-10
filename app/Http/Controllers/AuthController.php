@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Employee;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
@@ -18,11 +20,22 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        $user = DB::transaction(function () use ($request) {
+            $newUser = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => 'employee',
+            ]);
+
+            Employee::create([
+                'user_id' => $newUser->id,
+                'employee_name' => $newUser->name,
+                'employee_number' => 'EMP-' . str_pad($newUser->id, 4, '0', STR_PAD_LEFT),
+            ]);
+
+            return $newUser;
+        });
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -82,14 +95,25 @@ class AuthController extends Controller
         $user = User::where('email', $socialUser->getEmail())->first();
 
         if (!$user) {
-            $user = User::create([
-                'name' => $socialUser->getName() ?? $socialUser->getNickname(),
-                'email' => $socialUser->getEmail(),
-                'provider' => $provider,
-                'provider_id' => $socialUser->getId(),
-                'password' => null, 
-                'email_verified_at' => now(), 
-            ]);
+            $user = DB::transaction(function () use ($socialUser, $provider) {
+                $newUser = User::create([
+                    'name' => $socialUser->getName() ?? $socialUser->getNickname(),
+                    'email' => $socialUser->getEmail(),
+                    'provider' => $provider,
+                    'provider_id' => $socialUser->getId(),
+                    'password' => null, 
+                    'role' => 'employee',
+                    'email_verified_at' => now(), 
+                ]);
+
+                Employee::create([
+                    'user_id' => $newUser->id,
+                    'employee_name' => $newUser->name,
+                    'employee_number' => 'EMP-' . str_pad($newUser->id, 4, '0', STR_PAD_LEFT),
+                ]);
+
+                return $newUser;
+            });
         } else {
             $user->update([
                 'provider' => $provider,
